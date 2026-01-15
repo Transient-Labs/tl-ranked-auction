@@ -51,12 +51,12 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
     uint128 public constant BASIS = 10_000;
     uint128 public constant CREATE_BID_BPS = 250; // 2.5%
     uint128 public constant INCREASE_BID_BPS = 50; // 0.5%
-    uint256 public constant MAX_TOKENS = 512;
+    uint256 public constant MAX_TOKENS = 512; // upper bound to keep looped external calls manageable
 
     // immutable storage set on initialization
     IERC721 public immutable NFT_CONTRACT;
     uint128 public immutable START_BID;
-    uint32 public immutable NUM_TOKENS;
+    uint32 public immutable NUM_TOKENS; // capped by MAX_TOKENS in the constructor
 
     // auction state
     AuctionState public state;
@@ -548,6 +548,7 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
 
     /// @notice Function to deposit token ids into the contract, in batches if necessary.
     /// @dev The contract must be given approval by the nft owner to escrow the tokens.
+    ///      Owner can escrow from any approved token owner; this is an intentional admin workflow.
     ///      The tokens should be deposited in the order in which they should be distributed based on rank.
     ///      i.e. [1,2,3] rather than [3,2,1] if rank one should get token id 1.
     function depositPrizeTokens(address tokenOwner, uint256[] calldata tokenIdsToAdd) external nonReentrant onlyOwner {

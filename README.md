@@ -21,6 +21,8 @@ The auction extends if any change in the ranking comes in the last 5 minutes. Th
 
 However, since people can continually increase bids and rearrange the order without as much economic friction as adding new bids, there is a hard cap for extensions set to 2 hours so that the auction has some definitive end. So, in theory, a 24 hour auction could at most last 26 hours. In practice, this is not expected to be seen, but it could happen.
 
+Note: the extension is based on rank changes. If the lowest winning bid increases but the ordering stays the same, the auction does not extend. This means the clearing price can move in the final minutes without extra time being added.
+
 Once the bidding is complete, the bids are finalized on-chain in a settlement process. This process can be called by anyone, but it is expected that the project runners call the function themselves as it involves iterating in loops. At this point, the clearing price has been set by the lowest winning bid and all winning collectors will only pay that amount.
 
 After everything has been finalized, collectors can claim the NFT and any refund they are owed (`bid - clearingPrice`). It is expected that collectors will claim this themselves, but anyone (like the project runners) can call the function on-chain for them.
@@ -32,6 +34,9 @@ Projects using this contract MUST take care in ensuring they think through this 
 If for some reason the ETH refund or NFT transfer fails, it does NOT brick the contract. The ETH and NFTs can be recovered by the rightful bidder and do not rely on any admin action/trust. This is not expected to happen for 99.999% of users, but rather for people trying to DOS the system.
 
 In an underallocated list (fewer bids than tokens), after the auction ends and is settled, the contract owner can withdraw any leftover escrowed tokens.
+
+## Uniform Price Demand Reduction
+This is a uniform-price, multi-unit auction: all winners pay the lowest winning bid. Like most auctions in this family, bidders may choose to shade bids to avoid raising the clearing price on all of their wins. This is expected behavior and is considered acceptable in this design, and it can help avoid overly aggressive clearing prices and support healthier secondary-market pricing.
 
 ## Quick Start
 1. **Escrow NFTs**: mint tokens and escrow them into the auction contract (ensure approvals/ownership are correct).
@@ -46,6 +51,10 @@ In an underallocated list (fewer bids than tokens), after the auction ends and i
    - **Winners** claim NFTs + refunds (`bid - clearingPrice`).
    - In a **fully allocated** auction, bidders who get displaced during bidding are refunded when they are removed (or the refund becomes claimable if the direct transfer fails).
    - In an **underallocated** auction, **all bidders are winners**; after settlement, the owner may withdraw any leftover escrowed NFTs.
+
+## Operational Notes
+- **Token escrow authority**: `depositPrizeTokens` is owner-only and can escrow from any `tokenOwner` that has approved the auction contract. This is an intentional admin workflow; projects should communicate this trust assumption to token holders.
+- **Looped transfers are bounded**: `NUM_TOKENS` is capped at 512 (`MAX_TOKENS`) and looped calls (escrow, withdrawals, ranking) are designed around this bound. For gas safety, process withdrawals and rankings in batches via `numToProcess` when needed.
 
 ## Key Parameters
 | Concept | Value | Purpose |
