@@ -344,6 +344,16 @@ contract TLRankedAuctionTest is Test {
         vm.expectRevert(TLRankedAuction.TooManyTokens.selector);
         ra.depositPrizeTokens(nftCollector, tokenIds);
 
+        // try depositing some that are already in the contract
+        uint256[] memory newTokenIds = new uint256[](5);
+        newTokenIds[0] = 0;
+        newTokenIds[1] = 1;
+        newTokenIds[2] = 2;
+        newTokenIds[3] = 3;
+        newTokenIds[4] = 4;
+        vm.expectRevert(TLRankedAuction.InvalidAddress.selector);
+        ra.depositPrizeTokens(address(ra), newTokenIds);
+
         // try setting up auction early
         vm.expectRevert(TLRankedAuction.DepositAllPrizeTokens.selector);
         ra.setupAuction(0, 0);
@@ -388,6 +398,44 @@ contract TLRankedAuctionTest is Test {
         // try setting up auction again
         vm.expectRevert(TLRankedAuction.NotAllowed.selector);
         ra.setupAuction(0, 0);
+    }
+
+    function test_auction_reset(address hacker) public {
+        vm.assume(hacker != address(this));
+
+        _deployContracts(1 ether, 2);
+
+        // cannot reset while not live
+        vm.expectRevert(TLRankedAuction.NotAllowed.selector);
+        ra.resetAuction();
+
+        // setup
+        _setupAuction(2, uint64(block.timestamp), 1 hours);
+
+        // non-owner cannot reset
+        vm.prank(hacker);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, hacker));
+        ra.resetAuction();
+
+        // reset succeeds with no bids
+        vm.expectEmit(false, false, false, true);
+        emit TLRankedAuction.AuctionReset();
+        ra.resetAuction();
+        assertEq(uint8(ra.state()), uint8(TLRankedAuction.AuctionState.CONFIGURING));
+        assertEq(ra.openAt(), 0);
+        assertEq(ra.duration(), 0);
+        assertEq(ra.hardEndAt(), 0);
+
+        // withdraw tokens
+        ra.withdrawPrizeTokens(nftCollector, 2);
+
+        // cannot reset when bids have been placed
+        _setupAuction(2, uint64(block.timestamp), 1 hours);
+        vm.deal(address(0xbeef), 10 ether);
+        vm.prank(address(0xbeef));
+        ra.createBid{value: 1 ether}(0);
+        vm.expectRevert(TLRankedAuction.BidsHaveBeenPlaced.selector);
+        ra.resetAuction();
     }
 
     /// Test bidding

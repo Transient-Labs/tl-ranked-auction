@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import {IERC721} from "@openzeppelin-contracts-5.5.0/token/ERC721/IERC721.sol";
 import {Ownable} from "@openzeppelin-contracts-5.5.0/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.5.0/utils/ReentrancyGuard.sol";
-import {SafeCast} from "@openzeppelin-contracts-5.5.0/utils/math/SafeCast.sol";
 
 /// @title Transient Ranked Auction
 /// @notice Fully onchain ranked auction using a sorted doubly linked list.
@@ -94,6 +93,7 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
 
     event AuctionConfigured(uint64 openAt, uint64 duration);
     event AuctionExtended(uint64 newDuration);
+    event AuctionReset();
     event AuctionSettling(uint256 clearingPrice);
     event AuctionSettled();
     event BidCreated(address indexed bidder, uint32 indexed bidId, uint256 amount);
@@ -118,6 +118,7 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
     error BidMore();
     error BiddingEnded();
     error BiddingNotOpen();
+    error BidsHaveBeenPlaced();
     error DepositAllPrizeTokens();
     error InvalidAddress();
     error InvalidBid();
@@ -158,12 +159,15 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         _checkAuctionOpen();
 
         // check min bid
-        uint128 amount = SafeCast.toUint128(msg.value);
+        uint128 amount = uint128(msg.value);
         uint128 minBid = _getMinBid();
         if (amount < minBid) revert BidMore();
 
         // insert bid
-        uint32 bidId = nextBidId++;
+        uint32 bidId = nextBidId;
+        unchecked {
+            nextBidId = bidId + 1;
+        }
         _insertBid(hintBidId, bidId, msg.sender, amount);
 
         // extend duration if needed
@@ -201,7 +205,7 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         if (msg.value < _getMinBidIncrease(bidAmount)) revert AddMore();
 
         // calculate the new bid amount
-        uint128 newBidAmount = SafeCast.toUint128(uint256(bidAmount) + msg.value);
+        uint128 newBidAmount = bidAmount + uint128(msg.value);
 
         // cache the old bid pointers
         uint32 oldNextId = bid.next;
@@ -247,7 +251,7 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         if (newEnd <= endTime) return;
 
         // extend duration
-        duration = SafeCast.toUint64(newEnd - uint256(openAt));
+        duration = uint64(newEnd) - openAt;
         emit AuctionExtended(duration);
     }
 
@@ -410,9 +414,11 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         } else {
             state = AuctionState.SETTLING;
             clearingPrice = listSize < NUM_TOKENS ? START_BID : _getTailBid();
-            pendingProceeds = uint256(listSize) * uint256(clearingPrice);
-            nextUnallocatedRank = listSize + 1;
-
+            unchecked { 
+                pendingProceeds = uint256(listSize) * uint256(clearingPrice);
+                nextUnallocatedRank = listSize + 1;
+            }
+            
             emit AuctionSettling(clearingPrice);
         }
     }
@@ -423,7 +429,10 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         if (state != AuctionState.SETTLING) revert NotAllowed();
 
         // cap numToProcess
-        uint32 alreadyProcessed = nextRank - 1;
+        uint32 alreadyProcessed;
+        unchecked {
+            alreadyProcessed = nextRank - 1;
+        }
         uint32 remaining = listSize > alreadyProcessed ? (listSize - alreadyProcessed) : 0;
         if (numToProcess > remaining) {
             numToProcess = remaining;
@@ -440,7 +449,10 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         // process ranks
         for (uint256 i = 0; i < numToProcess; ++i) {
             if (current == 0) revert InvariantBroken(); // safety measure to catch regression
-            uint32 rank = nextRank++;
+            uint32 rank = nextRank;
+            unchecked { 
+                nextRank = rank + 1;
+            }
             _bids[current].rank = rank;
             processedId = current;
             current = _bids[current].next;
@@ -476,8 +488,12 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         storedBid.claimed = true;
 
         // claim prize & refund
-        uint256 prizeTokenId = prizeTokenIds[storedBid.rank - 1]; // minus one since rank is one based, but array is zero based
-        uint256 refund = uint256(storedBid.amount - clearingPrice);
+        uint256 prizeTokenId;
+        uint256 refund;
+        unchecked {
+            prizeTokenId = prizeTokenIds[storedBid.rank - 1]; // minus one since rank is one based, but array is zero based
+            refund = uint256(storedBid.amount - clearingPrice);
+        }
         if (refund > 0) {
             _tryRefundEth(bidder, refund);
         }
@@ -504,8 +520,12 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         if (tokenRecipient == address(0)) revert InvalidAddress();
 
         // cap numToProcess
-        uint32 alreadyProcessed = nextUnallocatedRank - 1;
-        uint32 remaining = NUM_TOKENS - alreadyProcessed;
+        uint32 alreadyProcessed;
+        uint32 remaining;
+        unchecked {
+            alreadyProcessed = nextUnallocatedRank - 1;
+            remaining = NUM_TOKENS - alreadyProcessed;
+        }
         if (numToProcess > remaining) {
             numToProcess = remaining;
         }
@@ -513,8 +533,12 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
 
         // withdraw prize tokens
         for (uint256 i = 0; i < numToProcess; ++i) {
-            uint32 rank = nextUnallocatedRank++;
-            uint256 prizeTokenId = prizeTokenIds[rank - 1]; // rank is ones based
+            uint32 rank = nextUnallocatedRank;
+            uint256 prizeTokenId;
+            unchecked { 
+                nextUnallocatedRank = rank + 1;
+                prizeTokenId = prizeTokenIds[rank - 1]; // rank is ones based
+            }
             NFT_CONTRACT.safeTransferFrom(address(this), tokenRecipient, prizeTokenId);
 
             emit PrizeTokenWithdrawn(tokenRecipient, prizeTokenId);
@@ -533,7 +557,9 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         if (amountToWithdraw == 0) revert NothingToWithdraw();
 
         // effects
-        pendingProceeds -= amountToWithdraw;
+        unchecked {
+            pendingProceeds -= amountToWithdraw;
+        }
 
         // withdraw
         (bool success,) = payoutAddress.call{value: amountToWithdraw}("");
@@ -554,6 +580,7 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
     function depositPrizeTokens(address tokenOwner, uint256[] calldata tokenIdsToAdd) external nonReentrant onlyOwner {
         if (state != AuctionState.CONFIGURING) revert NotAllowed();
         if (prizeTokenIds.length + tokenIdsToAdd.length > NUM_TOKENS) revert TooManyTokens();
+        if (tokenOwner == address(this)) revert InvalidAddress();
 
         for (uint256 i = 0; i < tokenIdsToAdd.length; ++i) {
             uint256 prizeTokenId = tokenIdsToAdd[i];
@@ -610,6 +637,20 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         hardEndAt = openAt + duration + uint64(EXTENSION_HARD_CAP);
 
         emit AuctionConfigured(openAt_, duration_);
+    }
+
+    /// @notice Function to reset an auction back to `CONFIGURING` in case of error in setup.
+    /// @dev This can only be done before any bid comes in and can only be called by the owner.
+    function resetAuction() external nonReentrant onlyOwner {
+        if (state != AuctionState.LIVE) revert NotAllowed();
+        if (listSize > 0) revert BidsHaveBeenPlaced();
+
+        state = AuctionState.CONFIGURING;
+        openAt = 0;
+        duration = 0;
+        hardEndAt = 0;
+
+        emit AuctionReset();
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -738,7 +779,9 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
     /// @notice Function to get the prize token for a rank.
     function getPrizeTokenIdForRank(uint32 rank) external view returns (uint256) {
         if (rank > NUM_TOKENS || rank == 0) revert InvalidRank();
-        return prizeTokenIds[rank - 1]; // rank is one based
+        unchecked {
+            return prizeTokenIds[rank - 1]; // rank is one based
+        }
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -753,13 +796,13 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
         } else {
             // fully allocated list has a min bid above tail bid to prevent bid pollution (outbid by 1 wei)
             uint256 tailBid = uint256(_bids[tail].amount);
-            return SafeCast.toUint128(tailBid + tailBid * CREATE_BID_BPS / BASIS);
+            return uint128(tailBid + tailBid * CREATE_BID_BPS / BASIS);
         }
     }
 
     /// @dev Helper function to get the minimum bid increase amount to be valid on bid increase.
     function _getMinBidIncrease(uint128 bidAmount) internal pure returns (uint128) {
-        return SafeCast.toUint128( uint256(bidAmount) * INCREASE_BID_BPS / BASIS);
+        return uint128(uint256(bidAmount) * INCREASE_BID_BPS / BASIS);
     }
 
     /// @dev Helper function to get the tail bid.
