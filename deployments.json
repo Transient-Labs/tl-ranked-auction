@@ -1,0 +1,22 @@
+[
+    {
+        "name": "Botto test 1",
+        "address": "0x344FD900664118f7c3750A2ab809722E044302f0",
+        "chain": "sepolia"
+    },
+    {
+        "name": "Botto test 2",
+        "address": "0x43B50C375A5b9C18D5aA167cDb89b322e61957b8",
+        "chain": "sepolia"
+    },
+    {
+        "name": "notification test",
+        "address": "0x86911296F2Ceed09CE31719a56f03AD876BDD08F",
+        "chain": "sepolia"
+    },
+    {
+        "name": "Botto Genesis #000-051",
+        "address": "0xD17dcEE014d32452D69e90e986FcfCE04cC77B68",
+        "chain": "mainnet"
+    }
+]
