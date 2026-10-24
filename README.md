@@ -61,7 +61,7 @@ This is a uniform-price, multi-unit auction: all winners pay the lowest winning 
 |---|---:|---|
 | Fully-allocated outbid step | 2.5% | Ensures new bids meaningfully exceed the floor when supply is filled |
 | Minimum bid-increase step | 0.5% | Prevents dust increases that bloat chain state |
-| Extension window | 5 minutes | Prevent bid sniping near the end |
+| Extension window | 5 minutes | Gives bidders time to respond when a late bid changes the ranking |
 | Max total extensions | 2 hours | Ensures the auction ends deterministically |
 
 ## State Machine

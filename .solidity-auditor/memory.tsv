@@ -1,0 +1,22 @@
+#solidity-auditor-memory v1	key	status	scans	sha	title	kind
+tlrankedauction1155|increasebid|anti-snipe-bypass	NEW	1	c3ce3f4	A tail raise skips the anti-snipe extension and raises the clearing price	FINDING
+tlrankedauction1155|createbid|uint128-narrowing-cast	NEW	1	c3ce3f4	createBid casts the payment to uint128 without a size check	LEAD
+tlrankedauction1155|createbid|uint32-counter-wrap	NEW	1	c3ce3f4	nextBidId wraps to zero after 2^32 accepted bids	LEAD
+tlrankedauction1155|claim|unchecked-underflow-latent	NEW	1	c3ce3f4	claim subtracts the clearing price inside unchecked with no local guard	LEAD
+tlrankedauction1155|claim|unchecked-transfer-receipt	NEW	1	c3ce3f4	claim trusts the token call result without a balance check	LEAD
+tlrankedauction1155|claim|event-overstates-refund	NEW	1	c3ce3f4	PrizeTokenClaimed reports a refund that the bidder did not receive	LEAD
+tlrankedauction1155|claim|third-party-claim-gas-limit	NEW	1	c3ce3f4	A third-party claim can queue the refund or the prize	LEAD
+tlrankedauction1155|setupauction|unbounded-parameter-lockout	NEW	1	c3ce3f4	setupAuction accepts any duration and can lock the auction	LEAD
+tlrankedauction1155|getprizetokenidforrank|bounds-check-mismatch	NEW	1	c3ce3f4	getPrizeTokenIdForRank checks rank against the wrong length	LEAD
+tlrankedauction1155|depositprizetokens|escrow-ledger-desync	NEW	1	c3ce3f4	depositPrizeTokens records a prize before the transfer confirms it	LEAD
+tlrankedauction1155|withdrawpendingproceeds|proceeds-not-gated-on-delivery	NEW	1	c3ce3f4	The owner can withdraw proceeds while prize delivery is impossible	LEAD
+tlrankedauction1155|processranks|settle-on-tail-not-rank	NEW	1	c3ce3f4	processRanks settles on the tail instead of the rank count	LEAD
+tlrankedauction1155|increasebid|reinsert-wipes-node-flags	NEW	1	c3ce3f4	_insertBid rewrites the node and wipes rank and claimed	LEAD
+tlrankedauction1155|-getminbid|uint128-cast-wrap	NEW	1	c3ce3f4	_getMinBid wraps uint128 when the tail bid passes 3.32e38 wei	LEAD
+tlrankedauction1155|increasebid|uint128-narrowing-cast	NEW	1	c3ce3f4	increaseBid casts the payment to uint128 without a size check	LEAD
+tlrankedauction1155|depositprizetokens|missing-zero-token-owner-check	NEW	1	c3ce3f4	depositPrizeTokens skips a zero-address check on tokenOwner	LEAD
+tlrankedauction1155|rescuenft|unchecked-transfer-receipt	NEW	1	c3ce3f4	rescueNft trusts the token transfer without a delivery check	LEAD
+tlrankedauction1155|onerc1155batchreceived|supports-interface-lie	NEW	1	c3ce3f4	The holder advertises ERC-1155Receiver but always reverts batch receives	LEAD
+tlrankedauction1155|getbids|view-ghost-row	NEW	1	c3ce3f4	getBids returns one zeroed row for a removed or unused bid id	LEAD
+tlrankedauction1155|withdrawleftoverprizetokens|unchecked-transfer-receipt	NEW	1	c3ce3f4	withdrawLeftOverPrizeTokens burns a rank with no delivery check	LEAD
+tlrankedauction1155|withdrawprizetokens|unchecked-transfer-receipt	NEW	1	c3ce3f4	withdrawPrizeTokens pops each prize id before the transfer	LEAD
