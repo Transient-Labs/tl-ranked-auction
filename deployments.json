@@ -18,5 +18,45 @@
         "name": "Botto Genesis #000-051",
         "address": "0xD17dcEE014d32452D69e90e986FcfCE04cC77B68",
         "chain": "mainnet"
+    },
+    {
+        "name": "deekay-test-1",
+        "address": "0xAF4ab2133B50548100A4Aa6a4F6759387311A117",
+        "chain": "sepolia"
+    },
+    {
+        "name": "deekay-test-2",
+        "address": "0x7234CBE22424690969Fc3A5c0C7b28c1f208F0c2",
+        "chain": "sepolia"
+    },
+    {
+        "name": "deekay-test-3",
+        "address": "0xAd14C9E817f3D66186DC803C6864A7E6E1a176ab",
+        "chain": "sepolia"
+    },
+    {
+        "name": "deekay-test-4",
+        "address": "0xF78d86826dC1DCB1825d2c6360fAcA900666aF1b",
+        "chain": "sepolia"
+    },
+    {
+        "name": "deekay-test-5",
+        "address": "",
+        "chain": "sepolia"
+    },
+    {
+        "name": "deekay-test-6",
+        "address": "",
+        "chain": "sepolia"
+    },
+    {
+        "name": "deekay-test-7",
+        "address": "",
+        "chain": "sepolia"
+    },
+    {
+        "name": "deekay-test-8",
+        "address": "",
+        "chain": "sepolia"
     }
 ]
