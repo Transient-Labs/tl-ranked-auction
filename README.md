@@ -21,7 +21,7 @@ The auction extends if any change in the ranking comes in the last 5 minutes. Th
 
 However, since people can continually increase bids and rearrange the order without as much economic friction as adding new bids, there is a hard cap for extensions set to 2 hours so that the auction has some definitive end. So, in theory, a 24 hour auction could at most last 26 hours. In practice, this is not expected to be seen, but it could happen.
 
-Note: the extension is based on rank changes. If the lowest winning bid increases but the ordering stays the same, the auction does not extend. This means the clearing price can move in the final minutes without extra time being added.
+Note: the extension is based on rank changes, not clearing-price changes by themselves. See "Bid Semantics and Extension Invariant" below for the precise policy.
 
 Once the bidding is complete, the bids are finalized on-chain in a settlement process. This process can be called by anyone, but it is expected that the project runners call the function themselves as it involves iterating in loops. At this point, the clearing price has been set by the lowest winning bid and all winning collectors will only pay that amount.
 
@@ -34,6 +34,21 @@ Projects using this contract MUST take care in ensuring they think through this 
 If for some reason the ETH refund or NFT transfer fails, it does NOT brick the contract. The ETH and NFTs can be recovered by the rightful bidder and do not rely on any admin action/trust. This is not expected to happen for 99.999% of users, but rather for people trying to DOS the system.
 
 In an underallocated list (fewer bids than tokens), after the auction ends and is settled, the contract owner can withdraw any leftover escrowed tokens.
+
+## Bid Semantics and Extension Invariant
+
+Each bid is a binding maximum price: it is the most that the bidder authorizes the auction to charge if that bid wins. It is not a quote of the price the bidder expects to pay. The full bid is escrowed, the bid amount determines rank, and a winner ultimately pays the uniform clearing price and receives `bid - clearingPrice` back. A live bid cannot be lowered or cancelled. Therefore, a winner may pay any clearing price up to their submitted bid, but can never be charged more than that bid.
+
+The anti-snipe extension protects changes to allocation, not changes to a winner's expected discount:
+
+- Every accepted new bid changes the active ranked set, so it invokes the extension logic.
+- A bid increase invokes the extension logic only when the bid's position—and therefore the rank ordering—changes.
+- If a bid increases but remains in the same position, the auction does not extend. This includes a lowest winning bid that remains the lowest winning bid while increasing the projected clearing price.
+- Every extension remains capped by `hardEndAt`.
+
+The same-rank case is intentional: it does not change who wins or which rank-specific prize anyone receives, and every winner has already committed to pay up to their own bid. If an increase crosses another bid and changes rank, the auction does extend.
+
+Frontends should present the submitted amount as the bidder's true maximum willingness to pay. A transaction submitted at exactly the current minimum can revert if the tail changes before the transaction is included; that is a stale minimum quote, not a change to the bidder's stored bid.
 
 ## Uniform Price Demand Reduction
 This is a uniform-price, multi-unit auction: all winners pay the lowest winning bid. Like most auctions in this family, bidders may choose to shade bids to avoid raising the clearing price on all of their wins. This is expected behavior and is considered acceptable in this design, and it can help avoid overly aggressive clearing prices and support healthier secondary-market pricing.

@@ -1,6 +1,6 @@
 # Invariant Map
 
-> Transient Labs Ranked Auction | 40 guards | 19 inferred (14 single-contract · 1 cross-contract · 4 economic) | 1 not enforced on-chain
+> Transient Labs Ranked Auction | 40 guards | 20 inferred (15 single-contract · 1 cross-contract · 4 economic) | 1 not enforced on-chain
 
 `TLRankedAuction` (ERC-721) and `TLRankedAuction1155` are logic clones; every entry cites the 721 variant first and the 1155 line second. All storage-variable write sites below were enumerated by grep across both files.
 
@@ -306,6 +306,18 @@ Inferred invariants derive from structural analysis of the source. Extraction me
 
 ---
 
+#### I-15
+
+`Temporal` (allocation-sensitive extension) · On-chain: **Yes**
+
+> During the extension window, every accepted action that changes the active winning set or rank ordering invokes the extension logic. An amount increase that leaves the bid in the same position intentionally does not extend the auction, even when the bid is the tail and raises the projected clearing price. Every resulting extension is clamped to hardEndAt.
+
+**Derivation** — `createBid` always calls `_extendAuctionDuration()` after inserting the new bid @174; because a fully allocated list requires a new amount strictly above the tail, the subsequent removal changes the winning set, while an underallocated insertion adds a new winning rank. `increaseBid` snapshots `oldNextId` and `oldPrevId` @211-212 and calls `_extendAuctionDuration()` iff either pointer changes after reinsertion @220-223; unchanged neighbors mean unchanged rank. `_extendAuctionDuration` acts only when less than `EXTENSION_TIME` remains @242 and clamps the new end to `hardEndAt` @248. 1155 mirror @178, 215-216, 224-227, 246, 252.
+
+**If violated** — a late allocation/rank change could occur without the promised response window, or a same-rank price change could extend the auction contrary to its maximum-bid semantics and documented liveness policy.
+
+---
+
 **Categories:**
 - **Conservation**: storage variables change by equal-and-opposite amounts in the same function body (Δ(A) = +x, Δ(B) = −x → A + B = const), or credits mirror held value.
 - **Bound**: a guard on a storage variable lifted to a global property across every write site (G-5/G-8 → every amount ≥ floor; listSize ≤ NUM_TOKENS).
@@ -341,7 +353,7 @@ On-chain: **Yes**
 
 On-chain: **Yes**
 
-> Uniform pricing holds net-of-refunds: every winner pays exactly clearingPrice (bid − refund), and aggregate winner payments == pendingProceeds == listSize × clearingPrice.
+> The protocol treats each stored bid as that bidder's binding maximum price. Uniform pricing holds net-of-refunds: every winner pays exactly clearingPrice (bid − refund), never more than their bid, and aggregate winner payments == pendingProceeds == listSize × clearingPrice.
 
 **Follows from** — I-5 + I-4 + I-2
 

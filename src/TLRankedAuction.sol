@@ -153,7 +153,7 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
     /////////////////////////////////////////////////////////////////////
 
     /// @notice Function to create a bid, using a hint bid id to lower gas consumption.
-    /// @dev If `hintBidId` is invalid, it will walk the entire list. Otherwise, will walk UP or DOWN from the hint.
+    /// @dev `msg.value` is the bidder's maximum price. An invalid hint walks the full list; a valid hint walks up/down.
     function createBid(uint32 hintBidId) external payable nonReentrant {
         // check auction is open
         _checkAuctionOpen();
@@ -180,10 +180,10 @@ contract TLRankedAuction is Ownable, ReentrancyGuard {
     }
 
     /// @notice Function to add onto a bid, again using a hint bid id for a new insertion point.
-    /// @dev Removes the bid from it's current position and then inserts it again using the hint.
-    ///      There's no need to remove the tail as we aren't increasing the list size.
-    ///      The bid must increase over itself by `INCREASE_BID_BPS` and can extend the auction
-    ///      if the position of the bid changes in the list.
+    /// @dev The full stored bid is the bidder's maximum price; `msg.value` adds to that maximum.
+    ///      Removes the bid from its current position and reinserts it using the hint.
+    ///      The bid must increase by `INCREASE_BID_BPS`; the list size does not change.
+    ///      Only a position/rank change extends; a same-rank increase intentionally does not.
     function increaseBid(uint32 bidId, uint32 hintBidId) external payable nonReentrant {
         // check auction is open
         _checkAuctionOpen();
